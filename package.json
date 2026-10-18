@@ -1,0 +1,10 @@
+{
+  "name": "agence-manager",
+  "private": true,
+  "type": "module",
+  "description": "Pilotage manager d'agence : planning, absences, obligations, capture vocale. PWA sans serveur.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "start": "node scripts/serve.mjs 8642"
+  }
+}

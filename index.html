@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AgenceManager</title>
+  <meta name="description" content="Planning, absences et obligations managériales de l'agence.">
+  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1015" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Agence">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><span class="brand-mark">AM</span><span>AgenceManager</span></div>
+      <nav class="nav" id="nav"></nav>
+      <div class="side-foot"><button class="sync" id="sync-state" data-act="sync-now" data-etat="off"><i></i><span>Synchro désactivée</span></button></div>
+    </aside>
+    <main>
+      <div class="top">
+        <h1 id="title">AgenceManager</h1>
+        <form class="capture" id="capture-top" autocomplete="off">
+          <input type="text" name="texte" placeholder="Ajouter : « coaching Marc jeudi 10h »" aria-label="Ajouter en langage naturel" enterkeyhint="done">
+          <button class="btn icon" type="button" data-act="dicter" title="Dicter" aria-label="Dicter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+          <div class="preview" hidden></div>
+        </form>
+      </div>
+      <div id="view"></div>
+    </main>
+  </div>
+  <nav class="tabbar" id="tabbar"></nav>
+  <button class="fab" data-act="capture" aria-label="Ajouter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <dialog id="dlg"></dialog>
+  <noscript>Cette application nécessite JavaScript.</noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

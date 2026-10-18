@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+*.log
+# Sauvegardes et exports personnels : jamais dans le dépôt public de l'app
+agence-manager-*.json
+*.ics
+
+# Configuration locale de Claude Code
+.claude/
