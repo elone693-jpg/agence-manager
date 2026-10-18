@@ -2,6 +2,10 @@
 
 Outil personnel de pilotage pour un manager d'agence : planning de la semaine, tâches, absences et présence de l'équipe, échéancier des obligations managériales, dictée depuis l'Apple Watch. Application web installable (iPhone et Mac), sans serveur et sans compte supplémentaire.
 
+**Adresse : https://elone693-jpg.github.io/agence-manager/**
+
+Ce dépôt public ne contient que le code. Les données sont dans un dépôt privé distinct.
+
 ## Fonctions
 
 - **Aujourd'hui** : agenda du jour et de demain, éléments à traiter (retards, dictées à valider, obligations, jours en sous-effectif), absents, objectifs du mois par catégorie, mémos.
