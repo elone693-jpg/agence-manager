@@ -1,5 +1,5 @@
 // Service worker : l'app s'ouvre et fonctionne sans réseau. Changer VERSION à chaque mise en ligne.
-const VERSION = 'am-1.1.0';
+const VERSION = 'am-1.1.1';
 const FICHIERS = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/ui/ctx.js', 'js/ui/dom.js', 'js/ui/forms.js', 'js/ui/exemple.js',

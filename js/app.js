@@ -19,7 +19,7 @@ import { emptyData, merge } from './core/store.js';
 import { donneesExemple } from './ui/exemple.js';
 import { typeAbsence } from './core/equipe.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 globalThis.AM_VERSION = VERSION;
 
 const VUES = {
@@ -373,4 +373,16 @@ document.addEventListener('keydown', e => {
 rendre();
 if (sync.config()) planifierSync(200);
 // Hors ligne uniquement en production (HTTPS) : en local, le cache masquerait les modifications.
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // Nouvelle version installée : recharger une fois pour l'utiliser tout de suite.
+  const avaitUneVersion = !!navigator.serviceWorker.controller;
+  let recharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!avaitUneVersion || recharge || $('#dlg').open) return;
+    recharge = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+  }).catch(() => {});
+}
