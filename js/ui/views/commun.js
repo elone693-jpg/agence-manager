@@ -6,6 +6,13 @@ import { ICONES } from '../dom.js';
 // Ligne de liste pour une instance de tâche (ou une tâche sans date).
 export function ligneInst(i, { avecDate = false } = {}) {
   const t = i.tache ?? i;
+  if (i.externe) {
+    const quand = [avecDate ? fmtJour(i.date) : '', i.debut ? `${fmtHeure(i.debut)}${i.fin ? `–${fmtHeure(i.fin)}` : ''}` : 'Journée'].filter(Boolean).join(' · ');
+    return `<div class="item ext" data-act="ouvrir-rdv" data-id="${esc(i.id)}">
+      <span class="tick-ext" aria-hidden="true">📅</span>
+      <div class="what"><div class="title">${esc(t.titre)}</div><div class="meta">Agenda iPhone · ${esc(t.calendrier || '')}</div></div>
+      <div class="when nowrap" style="text-align:right">${esc(quand)}</div></div>`;
+  }
   const c = cat(t.cat);
   const fait = i.statut === 'fait';
   const quand = [avecDate && i.date ? fmtJour(i.date) : '', i.debut ? `${fmtHeure(i.debut)}${i.fin ? `–${fmtHeure(i.fin)}` : ''}` : (avecDate ? '' : 'Journée')].filter(Boolean).join(' · ');

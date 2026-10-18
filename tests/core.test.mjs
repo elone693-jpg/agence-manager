@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addMonths, ferie, isoWeek, dow, fmtJour } from '../js/core/dates.js';
+import { addMonths, ferie, feries, isoWeek, dow, fmtJour, murVersUtc, utcVersMur, configurerFeries, territoireDuFuseau } from '../js/core/dates.js';
 import { occurrences, instances, conflits, creneauLibre, enRetard } from '../js/core/agenda.js';
 import { absencesLe, presence, heuresFormation } from '../js/core/equipe.js';
 import { echeancier } from '../js/core/obligations.js';
@@ -106,7 +106,7 @@ test('DDA : heures de formation de l’année', () => {
   assert.equal(heuresFormation(abs, 'c', 2026), 10.5);
 });
 
-test('ICS : fuseau Paris, échappement, absences génériques, lignes ≤ 75 octets', () => {
+test('ICS : heures en UTC depuis le fuseau de l’agence, échappement, absences génériques, lignes ≤ 75 octets', () => {
   const equipe = [{ id: 'carla', prenom: 'Carla', nom: 'Petit' }, { id: 'lea', prenom: 'Léa', nom: 'Martin' }];
   const taches = [
     T('t1', '2026-10-26', '09:00', '10:00', { titre: 'Entretien annuel; objectifs, primes', cat: 'entretien', collabs: ['carla'] }),
@@ -116,10 +116,9 @@ test('ICS : fuseau Paris, échappement, absences génériques, lignes ≤ 75 oct
   const ics = buildIcs({
     insts: instances(taches, '2026-10-01', '2026-11-30'), equipe, rappelMinutes: 10,
     absences: [{ id: 'a1', collab: 'lea', du: '2026-10-29', au: '2026-10-30', type: 'maladie', note: 'arrêt médical', statut: 'validee' }],
-    now: new Date('2026-10-17T20:00:00Z'),
+    now: new Date('2026-10-17T20:00:00Z'), fuseau: 'Europe/Paris',
   });
-  assert.ok(ics.includes('DTSTART;TZID=Europe/Paris:20261026T090000'));
-  assert.ok(ics.includes('BEGIN:VTIMEZONE'));
+  assert.ok(ics.includes('DTSTART:20261026T080000Z'), 'Paris, après le passage à l’heure d’hiver : UTC+1');
   assert.ok(ics.includes('SUMMARY:Entretien annuel\\; objectifs\\, primes — C.P.'));
   assert.ok(ics.includes('DTSTART;VALUE=DATE:20261023'));
   assert.ok(ics.includes('DTEND;VALUE=DATE:20261031'));
@@ -153,4 +152,48 @@ test('store : écritures ordonnées même dans la même milliseconde', () => {
   s.remove('taches', id);
   assert.equal(s.get('taches', id), null);
   assert.equal(s.list('taches').length, 0);
+});
+
+test('ICS stable : identique tant que rien ne change, rendez-vous importés exclus', () => {
+  const taches = [{ id: 't1', titre: 'Visa', cat: 'admin', date: '2026-10-20', debut: '10:00', fin: '11:00', statut: 'afaire', collabs: [], _t: 1760000000000 }];
+  const ext = [{ key: 'rdv@2026-10-20', id: 'rdv', date: '2026-10-20', debut: '14:00', fin: '15:00', statut: 'afaire', externe: true, tache: { titre: 'Comité', collabs: [] } }];
+  const gen = now => buildIcs({ insts: [...instances(taches, '2026-10-01', '2026-10-31'), ...ext], now });
+  assert.equal(gen(new Date('2026-10-18T08:00:00Z')), gen(new Date('2026-10-18T09:30:00Z')));
+  assert.ok(!gen(new Date()).includes('Comité'));
+  assert.ok(gen(new Date()).includes('REFRESH-INTERVAL;VALUE=DURATION:PT15M'));
+});
+
+test('fuseau Guadeloupe : 10 h à l’agence = 14 h UTC, sans changement d’heure', () => {
+  const taches = [{ id: 'g', titre: 'Coaching', cat: 'coaching', date: '2026-10-20', debut: '10:00', fin: '11:00', statut: 'afaire', collabs: [] },
+    { id: 'h', titre: 'Coaching', cat: 'coaching', date: '2027-03-30', debut: '10:00', fin: '11:00', statut: 'afaire', collabs: [] }];
+  const ics = buildIcs({ insts: instances(taches, '2026-10-01', '2027-04-30'), fuseau: 'America/Guadeloupe' });
+  assert.ok(ics.includes('DTSTART:20261020T140000Z'));
+  assert.ok(ics.includes('DTSTART:20270330T140000Z'));
+  assert.ok(ics.includes('X-WR-TIMEZONE:America/Guadeloupe'));
+});
+
+test('jours fériés : Guadeloupe (27 mai légal) et jours chômés d’usage à cocher', () => {
+  assert.equal(feries(2026, { territoire: 'guadeloupe' })['2026-05-27'], 'Abolition de l’esclavage');
+  assert.equal(feries(2026, { territoire: 'metropole' })['2026-05-27'], undefined);
+  assert.equal(feries(2026, { territoire: 'martinique' })['2026-05-22'], 'Abolition de l’esclavage');
+  const usages = feries(2026, { territoire: 'guadeloupe', usages: ['vendrediSaint', 'mardiGras', 'cendres', 'schoelcher'] });
+  assert.equal(usages['2026-04-03'], 'Vendredi saint');
+  assert.equal(usages['2026-02-17'], 'Mardi gras');
+  assert.equal(usages['2026-02-18'], 'Mercredi des Cendres');
+  assert.equal(usages['2026-07-21'], 'Fête Victor Schœlcher');
+  assert.equal(feries(2026, { territoire: 'alsacemoselle' })['2026-12-26'], 'Saint-Étienne');
+  assert.equal(territoireDuFuseau('America/Guadeloupe'), 'guadeloupe');
+  assert.equal(territoireDuFuseau('Europe/Paris'), 'metropole');
+  configurerFeries({ territoire: 'guadeloupe' });
+  assert.equal(ferie('2026-05-27'), 'Abolition de l’esclavage');
+  configurerFeries({ territoire: 'metropole' });
+  assert.equal(ferie('2026-05-27'), null);
+});
+
+test('heure murale ↔ UTC', () => {
+  assert.equal(murVersUtc('2026-10-23', '09:00', 'Europe/Paris').toISOString(), '2026-10-23T07:00:00.000Z');
+  assert.equal(murVersUtc('2026-10-26', '09:00', 'Europe/Paris').toISOString(), '2026-10-26T08:00:00.000Z');
+  assert.equal(murVersUtc('2026-10-26', '09:00', 'America/Guadeloupe').toISOString(), '2026-10-26T13:00:00.000Z');
+  assert.deepEqual(utcVersMur(new Date('2026-10-26T13:00:00Z'), 'America/Guadeloupe'), { date: '2026-10-26', heure: '09:00' });
+  assert.deepEqual(utcVersMur(new Date('2026-10-27T02:30:00Z'), 'America/Guadeloupe'), { date: '2026-10-26', heure: '22:30' });
 });

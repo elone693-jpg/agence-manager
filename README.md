@@ -33,11 +33,21 @@ Mise en place (Réglages → Synchronisation) :
 
 **Dictée depuis la montre** : un Raccourci Apple (*Dicter le texte* puis *Obtenir le contenu de l'URL* en POST sur `https://api.github.com/repos/<compte>/<dépôt>/issues`, corps `{"title": "Dictée", "body": <texte>}`) dépose la phrase dans le dépôt. L'app la récupère à la synchro suivante, l'analyse puis ferme l'issue. Les étapes détaillées sont affichées dans Réglages.
 
+## Agenda de l'iPhone (dans les deux sens)
+
+**App → Calendrier.** Option *Réglages → Agenda de l'iPhone → Publier mes tâches et absences*. À chaque synchronisation, si quelque chose a changé, l'app republie un fichier `.ics` dans un **gist secret** de votre compte (non listé, lisible seulement avec son adresse). L'iPhone s'abonne une fois à ce lien (bouton *S'abonner sur cet appareil*) : le calendrier « AgenceManager » apparaît alors dans Calendrier, sur le Mac et sur l'Apple Watch, mis à jour selon le réglage *Nouvelles données* d'iOS (15 min à 1 h). La clé d'accès doit avoir l'autorisation **Gists** en lecture et écriture. Noms en initiales par défaut, aucun motif d'absence, rendez-vous importés jamais renvoyés.
+
+**Calendrier → App.** Un Raccourci (« Agenda vers AgenceManager », étapes dans Réglages) lit les rendez-vous des 31 prochains jours, hors calendrier « AgenceManager », et les dépose dans le dépôt privé (issue « Agenda »). À la synchro, l'app remplace les rendez-vous à venir par ce nouvel instantané, ce qui reprend aussi les déplacements et suppressions. Ils apparaissent hachurés, en lecture seule, et comptent dans les conflits et la recherche de créneaux libres. Une automatisation iOS (*Heure de la journée*, *Exécuter immédiatement*) peut le lancer chaque matin.
+
+## Territoire et fuseau horaire
+
+Le territoire de l'agence est déduit du fuseau de l'appareil (ex. Guadeloupe) et modifiable dans Réglages → Agence. Il fixe les jours fériés légaux propres (27 mai en Guadeloupe, art. L3422-2 du code du travail) et le fuseau utilisé pour l'export et l'import. Les jours chômés d'usage (jours gras, Mercredi des Cendres, Vendredi saint, 21 juillet, 2 novembre) se cochent selon l'accord d'entreprise.
+
 ## Limites connues
 
 - La dictée de la montre est traitée à la prochaine ouverture de l'app (Mac ou iPhone), pas instantanément.
 - Pas de notifications push (cela demanderait un serveur) : pour les rappels, exporter le calendrier .ics.
-- L'export .ics est une copie ponctuelle : le refaire après des changements importants.
+- Le calendrier abonné se met à jour à la fréquence choisie par iOS, pas instantanément. Le Raccourci d'import ne s'exécute que lorsque l'iPhone le lance (manuellement ou par automatisation).
 
 ## Données personnelles
 
@@ -59,7 +69,7 @@ Publier une nouvelle version : changer `VERSION` dans `sw.js` et dans `js/app.js
 
 | Dossier | Contenu |
 |---|---|
-| `js/core/` | Logique sans interface, testée : dates et jours fériés, récurrences et conflits, absences et présence, obligations, analyse des dictées, export .ics, stockage et fusion |
-| `js/sync/` | Synchronisation GitHub (fichier de données et dictées) |
+| `js/core/` | Logique sans interface, testée : dates, fuseau et jours fériés par territoire, récurrences et conflits, absences et présence, obligations, analyse des dictées, import de l'agenda iPhone, export .ics, stockage et fusion |
+| `js/sync/` | Synchronisation GitHub (fichier de données, dictées et imports d'agenda, calendrier publié en gist secret) |
 | `js/ui/` | Interface : état partagé, formulaires, vues |
 | `tests/` | Tests Node (`node --test`) |

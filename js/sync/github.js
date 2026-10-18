@@ -8,6 +8,9 @@ import { merge, sameData } from '../core/store.js';
 
 const API = 'https://api.github.com';
 const FICHIER = 'donnees.json';
+const FICHIER_ICS = 'agence-manager.ics';
+// Adresse stable (sans numéro de révision) : toujours la dernière version du fichier.
+export const urlAbonnement = gist => `https://gist.githubusercontent.com/${gist.owner?.login}/${gist.id}/raw/${FICHIER_ICS}`;
 
 export function utf8ToB64(str) {
   const bytes = new TextEncoder().encode(str);
@@ -30,8 +33,10 @@ export class GitHubSync {
     this.owner = owner; this.repo = repo; this.token = token; this.fetch = fetchImpl;
   }
 
-  async api(path, { method = 'GET', body } = {}) {
-    const res = await this.fetch(`${API}/repos/${this.owner}/${this.repo}${path}`, {
+  api(path, opts) { return this.requete(`${API}/repos/${this.owner}/${this.repo}${path}`, opts); }
+
+  async requete(url, { method = 'GET', body } = {}) {
+    const res = await this.fetch(url, {
       method,
       headers: {
         Accept: 'application/vnd.github+json',
@@ -92,10 +97,28 @@ export class GitHubSync {
     throw new Error('Conflit de synchronisation persistant, nouvel essai à la prochaine synchro.');
   }
 
+  // ---------- Calendrier abonné (gist secret) ----------
+  // Un gist « secret » n'est pas listé publiquement mais reste lisible par qui connaît l'adresse :
+  // c'est le principe des liens d'abonnement des agendas en ligne. Il ne contient que l'export .ics.
+  async publierCalendrier(contenu, gistId) {
+    const files = { [FICHIER_ICS]: { content: contenu } };
+    if (gistId) {
+      try {
+        const { json } = await this.requete(`${API}/gists/${gistId}`, { method: 'PATCH', body: { files } });
+        return { gistId: json.id, url: urlAbonnement(json) };
+      } catch (e) {
+        if (e.status !== 404) throw e; // gist supprimé : on en recrée un
+      }
+    }
+    const { json } = await this.requete(`${API}/gists`, { method: 'POST', body: { description: 'AgenceManager — calendrier (ne pas partager le lien)', public: false, files } });
+    return { gistId: json.id, url: urlAbonnement(json), cree: true };
+  }
+
   async dictees() {
     const { json } = await this.api('/issues?state=open&per_page=50&sort=created&direction=asc');
     return (json ?? []).filter(i => !i.pull_request).map(i => ({
       numero: i.number,
+      titre: i.title ?? '',
       texte: (i.body?.trim() || i.title || '').trim(),
       recu: i.created_at,
     }));
@@ -108,6 +131,6 @@ export class GitHubSync {
 
 function messageErreur(status, json) {
   if (status === 401) return 'Clé d’accès refusée (expirée ou incorrecte).';
-  if (status === 403) return json?.message?.includes('rate limit') ? 'Trop de requêtes GitHub, nouvel essai dans quelques minutes.' : 'La clé n’a pas les droits nécessaires (Contents et Issues en écriture).';
+  if (status === 403) return json?.message?.includes('rate limit') ? 'Trop de requêtes GitHub, nouvel essai dans quelques minutes.' : 'La clé n’a pas les droits nécessaires (Contents et Issues en écriture, Gists pour le calendrier).';
   return `GitHub a répondu ${status}${json?.message ? ` : ${json.message}` : ''}`;
 }

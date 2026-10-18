@@ -4,7 +4,7 @@
 
 import { DEFAUT_CATEGORIES, DEFAUT_OBLIGATIONS, DEFAUT_REGLAGES } from './defaults.js';
 
-export const COLLECTIONS = ['equipe', 'taches', 'absences', 'obligations', 'inbox', 'memos', 'reglages'];
+export const COLLECTIONS = ['equipe', 'taches', 'absences', 'obligations', 'inbox', 'memos', 'reglages', 'agenda'];
 const PURGE_SUPPRESSIONS_JOURS = 90;
 
 export const uid = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`);

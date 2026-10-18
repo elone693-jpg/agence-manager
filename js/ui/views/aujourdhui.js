@@ -16,7 +16,7 @@ export function render() {
   const d = today();
   if (!equipe().length && !taches().length) return accueil();
 
-  const jour = insts(d, d);
+  const jour = insts(d, d, { avecAgenda: true });
   const retard = enRetard(taches(), d);
   const aplan = aPlanifier(taches());
   const inbox = store.list('inbox').length;
@@ -29,7 +29,7 @@ export function render() {
   const finSem = addDays(mondayOf(d), 6);
   const absSemaine = absences().filter(a => a.statut !== 'refusee' && a.du <= finSem && (a.au || a.du) >= d && !absJour.some(x => x.id === a.id))
     .sort((a, b) => a.du.localeCompare(b.du));
-  const demain = insts(addDays(d, 1), addDays(d, 1)).filter(i => i.statut !== 'annule');
+  const demain = insts(addDays(d, 1), addDays(d, 1), { avecAgenda: true }).filter(i => i.statut !== 'annule');
 
   const debutMois = d.slice(0, 8) + '01', finMois = addDays(addDays(debutMois, 31).slice(0, 8) + '01', -1);
   const moisInsts = insts(debutMois, finMois);

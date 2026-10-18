@@ -71,3 +71,35 @@ test('dictées : lecture des issues ouvertes puis clôture', async () => {
   await s.cloreDictee(7);
   assert.equal((await s.dictees()).length, 0);
 });
+
+test('calendrier : création du gist secret, mise à jour, recréation si supprimé', async () => {
+  const gists = new Map(); let n = 0; const appels = [];
+  const fetch = async (url, { method = 'GET', body } = {}) => {
+    const r = (status, json) => ({ status, ok: status < 300, json: async () => json });
+    appels.push(`${method} ${url.replace('https://api.github.com', '')}`);
+    if (url.endsWith('/gists') && method === 'POST') {
+      const b = JSON.parse(body); const id = `g${++n}`;
+      assert.equal(b.public, false, 'gist secret');
+      gists.set(id, b.files['agence-manager.ics'].content);
+      return r(201, { id, owner: { login: 'fred' } });
+    }
+    const m = url.match(/\/gists\/(\w+)$/);
+    if (m && method === 'PATCH') {
+      if (!gists.has(m[1])) return r(404, { message: 'Not Found' });
+      gists.set(m[1], JSON.parse(body).files['agence-manager.ics'].content);
+      return r(200, { id: m[1], owner: { login: 'fred' } });
+    }
+    return r(500, {});
+  };
+  const s = new GitHubSync({ owner: 'fred', repo: 'donnees', token: 't' }, fetch);
+  const a = await s.publierCalendrier('V1');
+  assert.equal(a.cree, true);
+  assert.equal(a.url, `https://gist.githubusercontent.com/fred/${a.gistId}/raw/agence-manager.ics`);
+  const b = await s.publierCalendrier('V2', a.gistId);
+  assert.equal(b.gistId, a.gistId);
+  assert.equal(gists.get(a.gistId), 'V2');
+  gists.delete(a.gistId);
+  const c = await s.publierCalendrier('V3', a.gistId);
+  assert.equal(c.cree, true);
+  assert.notEqual(c.gistId, a.gistId);
+});

@@ -1,13 +1,13 @@
 // Export iCalendar (RFC 5545) pour l'app Calendrier de l'iPhone, du Mac et de l'Apple Watch.
-// Heures exprimées en heure de Paris (TZID) avec la définition du fuseau : correct de part et
-// d'autre des changements d'heure. Noms en initiales par défaut (écran verrouillé, montre).
+// Les heures saisies sont celles de l'agence (fuseau `fuseau`) ; elles sont écrites en temps universel (Z),
+// que tout calendrier affiche correctement, quels que soient le fuseau de l'appareil et les changements d'heure.
+// Noms en initiales par défaut (écran verrouillé, montre).
 
-import { addDays } from './dates.js';
+import { addDays, murVersUtc, fuseauAppareil } from './dates.js';
 import { initiales } from './equipe.js';
 
 const esc = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const d8 = iso => iso.replace(/-/g, '');
-const dt = (iso, hhmm) => `${d8(iso)}T${hhmm.replace(':', '')}00`;
 const stamp = now => now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
 // Pliage à 75 octets sans couper un caractère accentué.
@@ -24,26 +24,21 @@ export function fold(line) {
   return parts.join('\r\n ');
 }
 
-const VTIMEZONE = [
-  'BEGIN:VTIMEZONE', 'TZID:Europe/Paris',
-  'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
-  'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD',
-  'END:VTIMEZONE',
-];
-
 // insts : instances (voir agenda.instances) ; absences : absences validées.
-export function buildIcs({ insts, absences = [], equipe = [], categorie, nomsComplets = false, rappelMinutes = null, now = new Date() }) {
+export function buildIcs({ insts, absences = [], equipe = [], categorie, nomsComplets = false, rappelMinutes = null, now = new Date(), fuseau = fuseauAppareil() }) {
   const who = id => { const c = equipe.find(x => x.id === id); return !c ? '' : nomsComplets ? `${c.prenom} ${c.nom}` : `${initiales(c).split('').join('.')}.`; };
   const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AgenceManager//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'X-WR-CALNAME:AgenceManager', 'X-WR-TIMEZONE:Europe/Paris', ...VTIMEZONE];
+    'X-WR-CALNAME:AgenceManager', `X-WR-TIMEZONE:${fuseau}`, 'REFRESH-INTERVAL;VALUE=DURATION:PT15M', 'X-PUBLISHED-TTL:PT15M'];
   for (const i of insts) {
-    if (i.statut === 'annule') continue;
+    // Les rendez-vous importés de l'iPhone y sont déjà : ne pas les renvoyer (doublons).
+    if (i.statut === 'annule' || i.externe) continue;
     const t = i.tache;
     const noms = (t.collabs ?? []).map(who).filter(Boolean).join(', ');
     const titre = noms && !nomsComplets ? `${t.titre} — ${noms}` : t.titre;
-    L.push('BEGIN:VEVENT', `UID:${i.key.replace('@', '-')}@agencemanager`, `DTSTAMP:${stamp(now)}`);
+    // DTSTAMP = date de dernière modification : le fichier ne change que si les données changent.
+    L.push('BEGIN:VEVENT', `UID:${i.key.replace('@', '-')}@agencemanager`, `DTSTAMP:${stamp(t._t ? new Date(t._t) : now)}`);
     if (i.debut) {
-      L.push(`DTSTART;TZID=Europe/Paris:${dt(i.date, i.debut)}`, `DTEND;TZID=Europe/Paris:${dt(i.date, i.fin || i.debut)}`);
+      L.push(`DTSTART:${stamp(murVersUtc(i.date, i.debut, fuseau))}`, `DTEND:${stamp(murVersUtc(i.date, i.fin || i.debut, fuseau))}`);
     } else {
       L.push(`DTSTART;VALUE=DATE:${d8(i.date)}`, `DTEND;VALUE=DATE:${d8(addDays(i.date, 1))}`, 'TRANSP:TRANSPARENT');
     }
@@ -58,7 +53,7 @@ export function buildIcs({ insts, absences = [], equipe = [], categorie, nomsCom
   for (const a of absences) {
     if (a.statut !== 'validee') continue;
     // Libellé générique : jamais le type ni le motif d'une absence.
-    L.push('BEGIN:VEVENT', `UID:abs-${a.id}@agencemanager`, `DTSTAMP:${stamp(now)}`,
+    L.push('BEGIN:VEVENT', `UID:abs-${a.id}@agencemanager`, `DTSTAMP:${stamp(a._t ? new Date(a._t) : now)}`,
       `DTSTART;VALUE=DATE:${d8(a.du)}`, `DTEND;VALUE=DATE:${d8(addDays(a.au || a.du, 1))}`,
       `SUMMARY:${esc(`Absent — ${who(a.collab)}`)}`, 'TRANSP:TRANSPARENT', 'END:VEVENT');
   }

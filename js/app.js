@@ -1,6 +1,6 @@
 // Point d'entrée : navigation, actions de l'interface, saisie/dictée, synchro automatique.
 
-import { store, ui, sauverUi, sync, today, insts, absences, absencesSur, estOuvre, equipe, collab, cat, nomCollab, contexteAnalyse, appliquerAnalyse, conflitsDe } from './ui/ctx.js';
+import { store, ui, sauverUi, sync, today, insts, absences, absencesSur, estOuvre, equipe, collab, cat, nomCollab, contexteAnalyse, appliquerAnalyse, conflitsDe, importerAgenda, effacerAgendaImporte, fuseau } from './ui/ctx.js';
 import { $, esc, toast, ouvrirDialogue, confirmer, telecharger, ICONES } from './ui/dom.js';
 import { ouvrirTache, ouvrirAbsence, ouvrirCollab } from './ui/forms.js';
 import { basculerFait } from './ui/views/commun.js';
@@ -19,7 +19,7 @@ import { emptyData, merge } from './core/store.js';
 import { donneesExemple } from './ui/exemple.js';
 import { typeAbsence } from './core/equipe.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 globalThis.AM_VERSION = VERSION;
 
 const VUES = {
@@ -101,6 +101,7 @@ sync.onChange(() => { rendreSync(); if (ui.vue === 'reglages') rendre(); });
 const ACTIONS = {
   'nouvelle-tache': el => ouvrirTache({ preset: { date: el.dataset.date ?? today() } }),
   'ouvrir-tache': el => ouvrirTache({ id: el.dataset.id, occ: el.dataset.occ || null }),
+  'ouvrir-rdv': el => ouvrirRdv(el.dataset.id),
   'basculer-fait': el => basculerFait(el.dataset.id, el.dataset.occ || null),
   'creer-ici': (el, e) => {
     if (e.target !== el) return;
@@ -126,6 +127,14 @@ const ACTIONS = {
   'suppr-memo': el => store.remove('memos', el.dataset.id),
   'sync-now': () => { if (!sync.config()) { location.hash = '#/reglages'; return; } sync.lancer(); },
   'sync-off': async () => { if (await confirmer('Déconnecter cet appareil de la synchro ? Les données restent sur l’appareil.')) { sync.configurer(null); rendre(); } },
+  'cal-copier': async () => { try { await navigator.clipboard.writeText(store.reglages().calendrier?.url ?? ''); toast('Lien copié'); } catch { toast('Copie impossible : sélectionnez le lien à la main.'); } },
+  'agenda-effacer': async () => { if (await confirmer('Effacer tous les rendez-vous importés de l’iPhone ? Ils reviendront au prochain import.')) { effacerAgendaImporte(); toast('Rendez-vous importés effacés'); } },
+  'agenda-test': () => {
+    const t = $('#agenda-test')?.value ?? '';
+    if (!t.trim()) return toast('Collez d’abord un texte d’import.');
+    const r = importerAgenda(t);
+    toast(`${r.total} rendez-vous importé(s)${r.ignores ? `, ${r.ignores} ligne(s) illisible(s)` : ''}`);
+  },
   'ajout-cat': () => { const r = store.reglages(); store.put('reglages', { ...r, id: 'general', categories: [...r.categories, { id: `cat-${Date.now().toString(36)}`, nom: 'Nouvelle catégorie', couleur: '#6b8e23', duree: 60, objectifMois: 0, mots: [] }] }); },
   'export-ics': () => exporterIcs(),
   'export-json': () => telecharger(`agence-manager-${today()}.json`, JSON.stringify(store.data, null, 1), 'application/json'),
@@ -164,6 +173,17 @@ document.addEventListener('change', async e => {
       ? { ...c, [el.dataset.k]: el.dataset.k === 'mots' ? el.value.split(',').map(s => s.trim()).filter(Boolean) : el.dataset.num != null ? Number(el.value) : el.value } : c));
     store.put('reglages', { ...r, id: 'general', categories: cats });
   }
+  if (k === 'cal-actif') {
+    store.put('reglages', { ...r, id: 'general', calendrier: { ...(r.calendrier ?? {}), actif: el.checked } });
+    if (el.checked) { toast('Publication du calendrier…'); sync.lancer(); }
+  }
+  if (k === 'territoire') store.put('reglages', { ...r, id: 'general', territoire: el.value, usagesFeries: [] });
+  if (k === 'usage-ferie') {
+    const u = new Set(r.usagesFeries ?? []);
+    el.checked ? u.add(el.dataset.u) : u.delete(el.dataset.u);
+    store.put('reglages', { ...r, id: 'general', usagesFeries: [...u] });
+  }
+  if (k === 'cal-noms') store.put('reglages', { ...r, id: 'general', calendrier: { ...(r.calendrier ?? {}), nomsComplets: el.checked } });
   if (k === 'oblig-actif') store.patch('obligations', el.dataset.id, { actif: el.checked });
   if (k === 'oblig-periode') store.patch('obligations', el.dataset.id, { periodeMois: Math.max(1, Number(el.value) || 1) });
   if (k === 'oblig-alerte') store.patch('obligations', el.dataset.id, { alerteJours: Math.max(0, Number(el.value) || 0) });
@@ -201,10 +221,34 @@ function planifierObligation(obligId, collabId) {
   const c = collabId ? collab(collabId) : null;
   const r = store.reglages();
   const d = today();
-  const slot = creneauLibre({ depuis: addDays(d, 1), duree: o.duree ?? 60, collabs: c ? [c.id] : [], insts: insts(d, addDays(d, 45)),
+  const slot = creneauLibre({ depuis: addDays(d, 1), duree: o.duree ?? 60, collabs: c ? [c.id] : [], insts: insts(d, addDays(d, 45), { avecAgenda: true }),
     absencesSur, estOuvre, heureDebut: r.heureDebut, heureFin: r.heureFin });
   ouvrirTache({ preset: { titre: c ? `${o.titre} — ${c.prenom}` : o.titre, cat: o.cat, oblig: o.id, collabs: c ? [c.id] : [], date: slot?.date ?? '', debut: slot?.debut ?? '', fin: slot?.fin ?? '' } });
   if (slot) toast(`Créneau proposé : ${fmtJour(slot.date)} à ${fmtHeure(slot.debut)}`);
+}
+
+// ---------- Rendez-vous importés de l'iPhone ----------
+function ouvrirRdv(id) {
+  const r = store.get('agenda', id);
+  if (!r) return;
+  const imp = store.get('reglages', 'agendaIphone');
+  const quand = r.journee ? `${fmtJour(r.date)}${r.jusqu ? ` → ${fmtJour(r.jusqu)}` : ''} · journée` : `${fmtJour(r.date)} · ${fmtHeure(r.debut)}${r.fin ? `–${fmtHeure(r.fin)}` : ''}`;
+  ouvrirDialogue(`
+    <div class="dlg-head"><h2>📅 ${esc(r.titre)}</h2><button class="btn icon ghost" data-close aria-label="Fermer">${ICONES.fermer}</button></div>
+    <div class="dlg-body">
+      <div><b>${esc(quand)}</b></div>
+      <div class="small muted">Calendrier « ${esc(r.calendrier || '?')} » de l’iPhone${imp?.dernierImport ? ` · importé le ${esc(new Date(imp.dernierImport).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }))}` : ''}</div>
+      <p class="small muted" style="margin:0">Pour le modifier, changez-le dans le Calendrier de l’iPhone : il sera mis à jour au prochain import.</p>
+    </div>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn" data-close>Fermer</button>
+      <button class="btn primary" data-copier>Créer une tâche liée</button></div>`, {
+    onMount: (dlg, fermer) => {
+      dlg.querySelector('[data-copier]').onclick = () => {
+        fermer();
+        setTimeout(() => ouvrirTache({ preset: { titre: `Préparer : ${r.titre}`, date: r.date, debut: '', fin: '' } }), 0);
+      };
+    },
+  });
 }
 
 // ---------- Dictées à valider ----------
@@ -304,7 +348,7 @@ function exporterIcs() {
   const d = today(), fin = addDays(d, 56);
   const ics = buildIcs({
     insts: insts(d, fin), equipe: equipe(), categorie: cat, nomsComplets: $('#ics-noms')?.checked,
-    absences: absences().filter(a => a.du <= fin && (a.au || a.du) >= d), rappelMinutes: store.reglages().rappelMinutes,
+    absences: absences().filter(a => a.du <= fin && (a.au || a.du) >= d), rappelMinutes: store.reglages().rappelMinutes, fuseau: fuseau(),
   });
   telecharger(`agence-manager-${d}.ics`, ics, 'text/calendar');
 }
@@ -313,6 +357,7 @@ function exporterIcs() {
 let syncTimer;
 const planifierSync = (delai = 2000) => { clearTimeout(syncTimer); syncTimer = setTimeout(() => sync.lancer(), delai); };
 store.onChange(() => { if (!sync.enCours && sync.config()) planifierSync(); });
+sync.agendaImporte = r => toast(`Agenda iPhone : ${r.total} rendez-vous à jour${r.supprimes ? `, ${r.supprimes} retiré(s)` : ''}`);
 sync.nouvellesDictees = n => toast(`${n} dictée(s) reçue(s) de la montre`, { action: 'Voir', onAction: () => { location.hash = store.list('inbox').length ? '#/avalider' : '#/planning'; } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { rendre(); planifierSync(300); } });
 window.addEventListener('online', () => planifierSync(300));

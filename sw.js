@@ -1,12 +1,12 @@
 // Service worker : l'app s'ouvre et fonctionne sans réseau. Changer VERSION à chaque mise en ligne.
-const VERSION = 'am-1.0.0';
+const VERSION = 'am-1.1.0';
 const FICHIERS = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/app.js', 'js/ui/ctx.js', 'js/ui/dom.js', 'js/ui/forms.js', 'js/ui/exemple.js',
   'js/ui/views/commun.js', 'js/ui/views/aujourdhui.js', 'js/ui/views/planning.js', 'js/ui/views/taches.js',
   'js/ui/views/equipe.js', 'js/ui/views/obligations.js', 'js/ui/views/avalider.js', 'js/ui/views/reglages.js',
   'js/core/dates.js', 'js/core/store.js', 'js/core/defaults.js', 'js/core/agenda.js', 'js/core/equipe.js',
-  'js/core/obligations.js', 'js/core/ics.js', 'js/core/voix.js', 'js/sync/github.js',
+  'js/core/obligations.js', 'js/core/ics.js', 'js/core/voix.js', 'js/core/agendaIphone.js', 'js/sync/github.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 

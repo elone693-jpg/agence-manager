@@ -50,4 +50,6 @@ export const DEFAUT_REGLAGES = {
   ddaHeures: 15,
   rappelMinutes: 10,
   categorieDefaut: 'admin',
+  territoire: '',      // '' = déduit du fuseau de l'appareil
+  usagesFeries: [],   // jours chômés d'usage cochés par l'agence
 };

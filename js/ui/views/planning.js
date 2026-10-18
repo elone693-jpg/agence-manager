@@ -12,8 +12,9 @@ export function render() {
   const d = today();
   const lundi = ui.semaine;
   const semaine = Array.from({ length: 7 }, (_, i) => addDays(lundi, i));
-  const toutes = insts(lundi, addDays(lundi, 6)).filter(i => i.statut !== 'annule');
-  const weekendOccupe = toutes.some(i => isWeekend(i.date));
+  const toutes = insts(lundi, addDays(lundi, 6), { avecAgenda: true }).filter(i => i.statut !== 'annule');
+  const mesTaches = toutes.filter(i => !i.externe);
+  const weekendOccupe = mesTaches.some(i => isWeekend(i.date));
   const montrerWeekend = weekendOccupe || semaine.slice(5).includes(d);
   const jours = mobile() ? [semaine.includes(ui.jour) ? ui.jour : lundi] : semaine.filter(x => montrerWeekend || !isWeekend(x));
   const r = store.reglages();
@@ -41,7 +42,7 @@ export function render() {
     const { noms, bas, p } = infosJour(x);
     const sansHeure = toutes.filter(i => i.date === x && !i.debut);
     return `<div>${noms ? `<div class="abs-line${bas ? ' low' : ''}" title="Présents : ${p.presents}/${p.effectif}">Absents : ${esc(noms)}</div>` : bas ? `<div class="abs-line low">Présents ${p.presents}/${p.effectif}</div>` : ''}
-      ${sansHeure.map(i => `<div class="ev-allday" style="--c:${esc(cat(i.tache.cat).couleur)}" data-act="ouvrir-tache" data-id="${esc(i.id)}" data-occ="${i.recurrent ? esc(i.date) : ''}">${i.statut === 'fait' ? '✓ ' : ''}${esc(i.tache.titre)}</div>`).join('')}</div>`;
+      ${sansHeure.map(i => `<div class="ev-allday${i.externe ? ' ext' : ''}" style="--c:${esc(cat(i.tache.cat).couleur)}" ${attrOuvrir(i)}>${i.externe ? '📅 ' : i.statut === 'fait' ? '✓ ' : ''}${esc(i.tache.titre)}</div>`).join('')}</div>`;
   };
 
   const colonne = x => {
@@ -52,12 +53,12 @@ export function render() {
       ${now}${evs.map(({ i, col, cols }) => {
         const s = toMin(i.debut), e = toMin(i.fin) ?? s + 60;
         const c = cat(i.tache.cat);
-        const conflit = i.statut !== 'fait' && conflitsDe({ ...i.tache, key: i.key, date: i.date }).length > 0;
+        const conflit = !i.externe && i.statut !== 'fait' && conflitsDe({ ...i.tache, key: i.key, id: i.id, date: i.date, debut: i.debut, fin: i.fin }).length > 0;
         const qui = (i.tache.collabs ?? []).map(id => nomCollab(id, true)).join(', ');
-        return `<div class="ev${i.statut === 'fait' ? ' done' : ''}${conflit ? ' conflict' : ''}" data-act="ouvrir-tache" data-id="${esc(i.id)}" data-occ="${i.recurrent ? esc(i.date) : ''}"
+        return `<div class="ev${i.statut === 'fait' ? ' done' : ''}${conflit ? ' conflict' : ''}${i.externe ? ' ext' : ''}" ${attrOuvrir(i)}
           style="--c:${esc(c.couleur)};top:${((s - hMin * 60) / 60) * HOUR + 1}px;height:${Math.max(((e - s) / 60) * HOUR - 2, 20)}px;left:calc(${(col / cols) * 100}% + 2px);width:calc(${100 / cols}% - 4px)"
           title="${esc(`${i.tache.titre} · ${i.debut}–${i.fin}${qui ? ` · ${qui}` : ''}${conflit ? ' · conflit' : ''}`)}">
-          <b>${i.recurrent ? '↻ ' : ''}${esc(i.tache.titre)}</b><small>${esc(fmtHeure(i.debut))}${i.fin ? `–${esc(fmtHeure(i.fin))}` : ''}${qui ? ` · ${esc(qui)}` : ''}</small></div>`;
+          <b>${i.externe ? '📅 ' : i.recurrent ? '↻ ' : ''}${esc(i.tache.titre)}</b><small>${esc(fmtHeure(i.debut))}${i.fin ? `–${esc(fmtHeure(i.fin))}` : ''}${qui ? ` · ${esc(qui)}` : ''}</small></div>`;
       }).join('')}</div>`;
   };
 
@@ -76,7 +77,7 @@ export function render() {
     <button class="btn icon" data-act="semaine" data-delta="7" aria-label="Semaine suivante">${ICONES.droite}</button>
     <h2>${esc(fmtCourt(lundi))} – ${esc(fmtCourt(addDays(lundi, 6)))} <span class="pill">S${isoWeek(lundi)}</span></h2>
     <span class="spacer"></span>
-    <span class="small muted only-desktop">${toutes.filter(i => i.statut === 'fait').length}/${toutes.length} terminées</span>
+    <span class="small muted only-desktop">${mesTaches.filter(i => i.statut === 'fait').length}/${mesTaches.length} terminées</span>
     <button class="btn primary only-desktop" data-act="nouvelle-tache" data-date="${jours.includes(d) ? d : lundi}">+ Tâche</button>
   </div>
   ${strip}${enteteMobile}
@@ -90,6 +91,8 @@ export function render() {
   </div>
   <p class="tiny faint only-desktop" style="margin-top:8px">Cliquez dans une colonne pour créer une tâche à cette heure. Bordure rouge : conflit d’horaire ou collaborateur absent.</p>`;
 }
+
+const attrOuvrir = i => (i.externe ? `data-act="ouvrir-rdv" data-id="${esc(i.id)}"` : `data-act="ouvrir-tache" data-id="${esc(i.id)}" data-occ="${i.recurrent ? esc(i.date) : ''}"`);
 
 export function apresRendu() {
   const body = document.getElementById('week-body');
