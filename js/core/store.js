@@ -19,7 +19,8 @@ export function emptyData(now = Date.now()) {
 export class Store {
   constructor(data, clock = () => Date.now()) {
     this.clock = clock;
-    this.data = data ?? emptyData(clock());
+    // Valeurs par défaut datées de 0 : à la première synchro, les vrais réglages des autres appareils l'emportent.
+    this.data = data ?? emptyData(0);
     for (const c of COLLECTIONS) this.data[c] ??= {};
     this.listeners = new Set();
   }

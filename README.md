@@ -26,10 +26,13 @@ Reconnu : aujourd'hui, demain, après-demain, jours de la semaine (« mardi » =
 
 Les données sont gardées sur chaque appareil et fusionnées dans un fichier `donnees.json` d'un dépôt GitHub **privé** (élément par élément, la modification la plus récente gagne, les suppressions se propagent). La synchro a lieu à l'ouverture, au retour sur l'app, chaque minute tant qu'elle est affichée et 2 s après une modification.
 
+Chaque appareil fonctionne seul, même hors ligne, et se synchronise automatiquement dès qu'il est en ligne.
+
 Mise en place (Réglages → Synchronisation) :
-1. Créer un dépôt privé, par exemple `agence-manager-donnees`.
-2. Créer une clé « fine-grained » limitée à ce dépôt, avec **Contents** et **Issues** en *Read and write*.
-3. Saisir compte, dépôt et clé sur chaque appareil.
+1. **Premier appareil (le Mac)** : créer un dépôt privé (ex. `agence-manager-donnees`, sans accent) et une clé « fine-grained » limitée à ce dépôt (**Contents** et **Issues** en *Read and write*, **Gists** pour le calendrier), puis les saisir dans *Première mise en place*.
+2. **Autres appareils (iPhone)** : sur le Mac, *Connecter un autre appareil* affiche un QR code ; dans l'app installée sur l'iPhone, *Scanner le code du Mac*. Aucune clé à taper. Si l'appareil contenait déjà des données (exemple), l'app propose de les remplacer par les données synchronisées.
+
+Le QR code contient la clé d'accès : ne pas le montrer. Il ouvre une adresse dont le code est retiré aussitôt, et dont la partie après « # » n'est jamais envoyée au serveur qui héberge l'app.
 
 **Dictée depuis la montre** : un Raccourci Apple (*Dicter le texte* puis *Obtenir le contenu de l'URL* en POST sur `https://api.github.com/repos/<compte>/<dépôt>/issues`, corps `{"title": "Dictée", "body": <texte>}`) dépose la phrase dans le dépôt. L'app la récupère à la synchro suivante, l'analyse puis ferme l'issue. Les étapes détaillées sont affichées dans Réglages.
 

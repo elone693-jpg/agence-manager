@@ -1,5 +1,6 @@
 import { esc } from '../dom.js';
 import { store, sync, rdvs, calendrier, territoire, fuseau } from '../ctx.js';
+import { htmlBoutonsJumelage } from '../jumelage.js';
 import { TERRITOIRES, USAGES, territoireDuFuseau, feries, fmtJour } from '../../core/dates.js';
 
 export const titre = () => 'Réglages';
@@ -36,22 +37,25 @@ export function render() {
 
   <section class="card span-2" id="synchro">
     <header><h2>Synchronisation Mac ↔ iPhone</h2><span class="pill ${sync.etat === 'ok' ? 'ok' : sync.etat === 'erreur' ? 'danger' : ''}">${esc(sync.message)}</span></header>
-    <p class="small muted" style="margin-top:0">Vos données restent sur vos appareils et sont copiées dans un dépôt GitHub <b>privé</b> qui vous appartient. Aucun serveur tiers.</p>
-    <details ${cfg.token ? '' : 'open'}><summary class="small" style="cursor:pointer;font-weight:600">Mise en place (une seule fois, 3 minutes)</summary>
+    <p class="small muted" style="margin-top:0">Chaque appareil (Mac, iPhone) fonctionne seul, même sans réseau. Dès qu’il est en ligne, il se synchronise automatiquement : à l’ouverture, après chaque modification et chaque minute. Les données sont copiées dans votre dépôt GitHub <b>privé</b>.</p>
+    <div class="row" style="margin-bottom:10px">${htmlBoutonsJumelage(!!cfg.token)}${cfg.token ? '<button class="btn" type="button" data-act="sync-now">Synchroniser maintenant</button>' : ''}</div>
+    ${cfg.token ? '' : '<p class="small muted" style="margin:0 0 8px">Nouvel appareil : sur le Mac déjà connecté, ouvrez Réglages → Synchronisation → <b>Connecter un autre appareil</b>, puis scannez le code ici.</p>'}
+    <details><summary class="small" style="cursor:pointer;font-weight:600">${cfg.token ? 'Configuration de la connexion' : 'Première mise en place, sans autre appareil (3 minutes)'}</summary>
       <ol class="steps small">
         <li>Créez un dépôt <b>privé</b> nommé par exemple <code>agence-manager-donnees</code> (sans accent : GitHub remplace les accents par des tirets) : <a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a>.</li>
         <li>Créez une clé d’accès : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">nouvelle clé « fine-grained »</a> → <i>Only select repositories</i> : ce dépôt uniquement → <i>Permissions</i> : <b>Contents</b> et <b>Issues</b> en <i>Read and write</i> → expiration 1 an.</li>
-        <li>Saisissez ci-dessous le compte, le dépôt et la clé, sur le Mac puis sur l’iPhone.</li>
-      </ol></details>
+        <li>Saisissez ci-dessous le compte, le dépôt et la clé. Les autres appareils se connecteront ensuite par QR code.</li>
+      </ol>
     <form class="fields" id="f-sync" autocomplete="off" style="margin-top:10px">
       <label class="field f-2"><span>Compte GitHub</span><input type="text" name="owner" value="${esc(cfg.owner ?? '')}" placeholder="elone693-jpg" autocapitalize="off" spellcheck="false" required></label>
       <label class="field f-2"><span>Dépôt de données</span><input type="text" name="repo" value="${esc(cfg.repo ?? 'agence-manager-donnees')}" autocapitalize="off" spellcheck="false" required></label>
       <label class="field f-2"><span>Clé d’accès</span><input type="password" name="token" value="${cfg.token ? '••••••••' : ''}" placeholder="github_pat_…" autocomplete="off" required></label>
       <div class="row f-6">
-        <button class="btn primary" type="submit">Enregistrer et tester</button>
-        ${cfg.token ? '<button class="btn" type="button" data-act="sync-now">Synchroniser maintenant</button><button class="btn danger" type="button" data-act="sync-off">Déconnecter cet appareil</button>' : ''}
+        <button class="btn${cfg.token ? '' : ' primary'}" type="submit">Enregistrer et tester</button>
+        ${cfg.token ? '<button class="btn danger" type="button" data-act="sync-off">Déconnecter cet appareil</button>' : ''}
       </div>
     </form>
+    </details>
   </section>
 
   <section class="card span-2">

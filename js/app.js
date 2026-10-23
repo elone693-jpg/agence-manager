@@ -17,9 +17,10 @@ import { addDays, fmtJour, fmtHeure, toMin } from './core/dates.js';
 import { buildIcs } from './core/ics.js';
 import { emptyData, merge } from './core/store.js';
 import { donneesExemple } from './ui/exemple.js';
+import { afficherCodeJumelage, scannerJumelage, traiterLienJumelage } from './ui/jumelage.js';
 import { typeAbsence } from './core/equipe.js';
 
-const VERSION = '1.1.1';
+const VERSION = '1.2.0';
 globalThis.AM_VERSION = VERSION;
 
 const VUES = {
@@ -92,7 +93,7 @@ function rendreSync() {
   b.title = sync.etat === 'erreur' ? sync.message : 'Synchroniser maintenant';
 }
 
-window.addEventListener('hashchange', () => { lireRoute(); window.scrollTo(0, 0); rendre(); });
+window.addEventListener('hashchange', () => { if (traiterLienJumelage()) return; lireRoute(); window.scrollTo(0, 0); rendre(); });
 matchMedia('(max-width: 860px)').addEventListener('change', rendre);
 store.onChange(rendre);
 sync.onChange(() => { rendreSync(); if (ui.vue === 'reglages') rendre(); });
@@ -144,8 +145,10 @@ const ACTIONS = {
   },
   'tout-effacer': async () => {
     if (!(await confirmer(sync.config() ? 'Effacer les données de cet appareil ? Celles du dépôt reviendront à la prochaine synchro : déconnectez d’abord la synchro pour repartir de zéro.' : 'Effacer toutes les données de cet appareil ? Exportez une sauvegarde avant.', { ok: 'Effacer', danger: true }))) return;
-    store.replace(emptyData()); toast('Données effacées');
+    store.replace(emptyData(0)); toast('Données effacées');
   },
+  'jumeler-afficher': () => afficherCodeJumelage(),
+  'jumeler-scanner': () => scannerJumelage(),
   capture: () => ouvrirCapture(),
   dicter: el => dicter(el.closest('form').querySelector('input[name="texte"]')),
 };
@@ -364,6 +367,7 @@ window.addEventListener('online', () => planifierSync(300));
 setInterval(() => { if (document.visibilityState === 'visible') sync.lancer(); }, 60000);
 
 // ---------- Démarrage ----------
+traiterLienJumelage();
 lireRoute();
 brancherCapture($('#capture-top'));
 document.addEventListener('keydown', e => {

@@ -197,3 +197,12 @@ test('heure murale ↔ UTC', () => {
   assert.deepEqual(utcVersMur(new Date('2026-10-26T13:00:00Z'), 'America/Guadeloupe'), { date: '2026-10-26', heure: '09:00' });
   assert.deepEqual(utcVersMur(new Date('2026-10-27T02:30:00Z'), 'America/Guadeloupe'), { date: '2026-10-26', heure: '22:30' });
 });
+
+test('appareil neuf : ses valeurs par défaut n’écrasent pas les réglages synchronisés', () => {
+  const mac = new Store(emptyData(0), () => 5000);
+  mac.put('reglages', { ...mac.reglages(), id: 'general', territoire: 'guadeloupe', seuilPresents: 3 });
+  const iphone = new Store(undefined, () => 9000);
+  const fusion = merge(iphone.data, mac.data);
+  assert.equal(fusion.reglages.general.territoire, 'guadeloupe');
+  assert.equal(fusion.reglages.general.seuilPresents, 3);
+});

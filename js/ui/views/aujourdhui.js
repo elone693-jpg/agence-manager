@@ -116,5 +116,6 @@ function accueil() {
       <button class="btn primary" data-act="nouveau-collab">Ajouter un collaborateur</button>
       <button class="btn" data-act="charger-exemple">Essayer avec un exemple</button>
     </div>
+    <p class="small muted" style="margin:16px 0 0">Déjà utilisé sur votre Mac ? <a href="#" data-act="jumeler-scanner">Scanner le code de jumelage</a> pour retrouver vos données ici.</p>
   </section>`;
 }
